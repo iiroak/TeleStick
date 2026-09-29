@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.env
+.env.local
+.env.*.local
+*.env
+data/
+*.sqlite3
+*.db
+*.db-shm
+*.db-wal
+.pnpm-store/
+*.tsbuildinfo
+.DS_Store
+*.swp
