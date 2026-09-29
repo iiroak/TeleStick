@@ -98,6 +98,18 @@ export function formatHubResponseSummary(results: RelayResult[]): string {
   return `Statuses returned by the gateway: ${statusSummary}.${replaySummary}`;
 }
 
+export function formatHubApiError(error: HubApiError): string {
+  const body = error.body.trim();
+  if (/<(?:!doctype\s+html|html\b)/i.test(body)) {
+    return `HTTP ${error.status}: the messaging gateway returned an HTML error page instead of its API response.`;
+  }
+
+  const detail = body.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+  return detail
+    ? `HTTP ${error.status}: ${detail.slice(0, 200)}`
+    : `HTTP ${error.status}: the messaging gateway returned an empty error response.`;
+}
+
 /**
  * Downloads a Telegram sticker, converts it to a WhatsApp-compliant WebP,
  * validates the result, and sends it to every given destination via the
@@ -188,10 +200,12 @@ export async function relayStickerToDestinations(
         idempotentReplay: response.idempotentReplay,
       });
     } catch (error) {
-      const detail =
-        error instanceof HubApiError
-          ? `HTTP ${error.status}: ${error.body.slice(0, 200)}`
-          : (error as Error).message;
+      if (error instanceof HubApiError) {
+        options.logger?.warn({ status: error.status }, "messaging gateway rejected sticker");
+      }
+      const detail = error instanceof HubApiError
+        ? formatHubApiError(error)
+        : (error as Error).message;
       results.push({ destination, ok: false, error: detail });
     }
   }

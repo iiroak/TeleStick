@@ -3,11 +3,13 @@ import { test } from "node:test";
 import type { Destination } from "../db/store.js";
 import {
   buildStickerIdempotencyKey,
+  formatHubApiError,
   formatHubResponseSummary,
   formatRelayResult,
   restoreBatchStickerRef,
   type StickerRef,
 } from "./relay.js";
+import { HubApiError } from "../hub/client.js";
 
 const sticker: StickerRef = {
   fileId: "telegram-file-id",
@@ -101,4 +103,20 @@ test("summarizes returned Hub states and replay responses for batch sends", () =
     text,
     "Statuses returned by the gateway: Home: queued (2). The gateway returned a replay in 1 response(s); no new send was confirmed.",
   );
+});
+
+test("summarizes HTML gateway errors without forwarding markup to Telegram", () => {
+  const html = `<!DOCTYPE html><html><body><h1>502 Bad Gateway</h1>${"x".repeat(300)}</body></html>`;
+  const message = formatHubApiError(new HubApiError("gateway error", 502, html));
+
+  assert.equal(
+    message,
+    "HTTP 502: the messaging gateway returned an HTML error page instead of its API response.",
+  );
+  assert.doesNotMatch(message, /<!DOCTYPE|<html|<body|502 Bad Gateway/);
+});
+
+test("keeps a short plain-text gateway error detail", () => {
+  const message = formatHubApiError(new HubApiError("gateway error", 502, "upstream unavailable"));
+  assert.equal(message, "HTTP 502: upstream unavailable");
 });
